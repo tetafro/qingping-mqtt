@@ -16,11 +16,21 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// The app can only process this types of messages.
-var allowedMessageTypes = []string{
-	"12", // real-time data
-	"13", // headrbeat
-	"17", // history data
+// HeartBeatInterval is the expected interval of heartbeats from the device.
+const HeartBeatInterval = 1 * time.Minute
+
+// List of known message types.
+const (
+	RealTimeDataType = "12"
+	HeadrbeatType    = "13"
+	HistoryDataType  = "17"
+)
+
+// AllowedMessageTypes is the list of message types that the app can process.
+var AllowedMessageTypes = []string{
+	RealTimeDataType,
+	HeadrbeatType,
+	HistoryDataType,
 }
 
 // MQTTBroker wraps the MQTT server and provides message handling.
@@ -160,12 +170,12 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	}
 	messagesReceivedCounter.WithLabelValues(msg.Type).Inc()
 
-	if !slices.Contains(allowedMessageTypes, msg.Type) {
+	if !slices.Contains(AllowedMessageTypes, msg.Type) {
 		h.log.WithField("type", msg.Type).Debug("Ignoring message type")
 		return pk, nil
 	}
 
-	if msg.Type == "13" {
+	if msg.Type == HeadrbeatType {
 		h.heartbeat()
 		return pk, nil
 	}
@@ -183,10 +193,6 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	if msg.NeedAck == 1 {
 		h.sendAcknowledgment(pk.TopicName, msg.ID)
 	}
-
-	go func() {
-		<-time.After(5 * time.Second)
-	}()
 
 	return pk, nil
 }
@@ -229,10 +235,10 @@ func (h *MessageHook) heartbeat() {
 	h.lastSeen = time.Now()
 	lastSeen := h.lastSeen
 
+	// If `lastSeen` has not increased after some time,
+	// set all metrics to 0
 	go func() {
-		// If `lastSeen` has not increased after 3 minutes,
-		// set all metrics to 0
-		time.Sleep(3 * time.Minute)
+		time.Sleep(3 * HeartBeatInterval)
 		if !h.lastSeen.After(lastSeen) {
 			h.setMetrics(SensorData{})
 		}
