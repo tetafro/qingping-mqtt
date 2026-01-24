@@ -110,6 +110,94 @@ func TestApp(t *testing.T) {
 			t.Error("Expected CO2 metric to be 850")
 		}
 	})
+
+	t.Run("invalid json message increments parse error counter", func(t *testing.T) {
+		message := `{"invalid json syntax`
+
+		err := sendMQTTMessage(t, mqttAddr, "qingping/test-device/up", message)
+		if err != nil {
+			t.Fatalf("Failed to send MQTT message: %v", err)
+		}
+
+		// Wait for message processing
+		time.Sleep(10 * time.Millisecond)
+
+		body, err := httpGet(fmt.Sprintf("http://%s/metrics", httpAddr))
+		if err != nil {
+			t.Fatalf("Failed to read metrics: %v", err)
+		}
+
+		if !strings.Contains(body, "qingping_mqtt_parse_errors_total 1") {
+			t.Error("Expected parse error counter to be incremented")
+		}
+	})
+
+	t.Run("message without ack required", func(t *testing.T) {
+		message := `{
+			"type": "17",
+			"id": 54321,
+			"need_ack": 0,
+			"mac": "112233445566",
+			"timestamp": 1594815555,
+			"sensorData": [{
+				"timestamp": {"value": 1592192453},
+				"temperature": {"value": 25.0},
+				"humidity": {"value": 50.0}
+			}]
+		}`
+
+		body, err := httpGet(fmt.Sprintf("http://%s/metrics", httpAddr))
+		if err != nil {
+			t.Fatalf("Failed to read metrics: %v", err)
+		}
+		acksBefore := strings.Count(body, "qingping_mqtt_acks_sent_total")
+
+		err = sendMQTTMessage(t, mqttAddr, "qingping/test-device/up", message)
+		if err != nil {
+			t.Fatalf("Failed to send MQTT message: %v", err)
+		}
+
+		// Wait for message processing
+		time.Sleep(10 * time.Millisecond)
+
+		body, err = httpGet(fmt.Sprintf("http://%s/metrics", httpAddr))
+		if err != nil {
+			t.Fatalf("Failed to read metrics: %v", err)
+		}
+		acksAfter := strings.Count(body, "qingping_mqtt_acks_sent_total")
+
+		if acksAfter != acksBefore {
+			t.Error("Expected no acknowledgment to be sent")
+		}
+	})
+
+	t.Run("heartbeat message type 13", func(t *testing.T) {
+		message := `{
+			"type": "13",
+			"id": 11111,
+			"need_ack": 0,
+			"mac": "112233445566",
+			"timestamp": 1594815555,
+			"sensorData": []
+		}`
+
+		err := sendMQTTMessage(t, mqttAddr, "qingping/test-device/up", message)
+		if err != nil {
+			t.Fatalf("Failed to send MQTT message: %v", err)
+		}
+
+		// Wait for message processing
+		time.Sleep(10 * time.Millisecond)
+
+		body, err := httpGet(fmt.Sprintf("http://%s/metrics", httpAddr))
+		if err != nil {
+			t.Fatalf("Failed to read metrics: %v", err)
+		}
+
+		if !strings.Contains(body, `qingping_mqtt_messages_received_total{type="13"} 1`) {
+			t.Error("Expected heartbeat message to be counted")
+		}
+	})
 }
 
 func httpGet(url string) (string, error) {
