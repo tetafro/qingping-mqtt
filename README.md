@@ -34,7 +34,7 @@ Download and run a pre-built binary ([releases](https://github.com/tetafro/qingp
     -mqtt-addr 0.0.0.0:1883 \
 ```
 
-Or run in Docker ([image tage](https://github.com/tetafro/qingping-mqtt/pkgs/container/qingping-mqtt))
+Or run in Docker ([image tag](https://github.com/tetafro/qingping-mqtt/pkgs/container/qingping-mqtt))
 ```sh
 docker run -d -p 8080:8080 -p 1883:1883 \
     ghcr.io/tetafro/qingping-mqtt
