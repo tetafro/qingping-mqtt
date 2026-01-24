@@ -8,44 +8,48 @@ Expose metrics from Qingping Lite air quality monitor.
 
 MQTT broker + Prometheus exporter.
 
-## Run binary
+## Prepare
 
-Download the latest [release](https://github.com/tetafro/qingping-mqtt/releases).
+To set up your device to send metrics to a remote MQTT broker follow the steps:
 
-Run
+1. Create a QingPing account in the [Qingping+](https://play.google.com/store/apps/details?id=com.cleargrass.app.air) app.
+1. Add your device to the app.
+1. Log in with the account to the [developers portal](https://developer.qingping.co).
+1. Go to "Private Configuration" and add a configuration:
+
+    - Private Type: Self-built MQTT
+    - Host/Port: listen address of `qingping-mqtt`
+    - Up topic: `qingping/your-device-name/up`
+    - Down topic: `qingping/your-device-name/down`
+
+1. Go to "Push Configuration" and add the configuration from the previous step for
+    your device.
+
+## Run
+
+Download and run a pre-built binary ([releases](https://github.com/tetafro/qingping-mqtt/releases))
 ```sh
 ./qingping-mqtt \
     -http-addr 0.0.0.0:8080 \
     -mqtt-addr 0.0.0.0:1883 \
 ```
 
-## Run in Docker
-
-Find the latest tag in [packages](https://github.com/tetafro/qingping-mqtt/pkgs/container/qingping-mqtt).
-
-Run
+Or run in Docker ([image tage](https://github.com/tetafro/qingping-mqtt/pkgs/container/qingping-mqtt))
 ```sh
 docker run -d -p 8080:8080 -p 1883:1883 \
     ghcr.io/tetafro/qingping-mqtt
 ```
 
-## Build and run
+## Build from source
 
-Run binary
+Binary
 ```sh
-make build run
+make build
 ```
 
-Run in Docker
+Docker image
 ```sh
 make docker
-docker run --rm -it -p 8080:8080 -p 1883:1883 \
-    ghcr.io/tetafro/qingping-mqtt
-```
-
-Check metrics
-```sh
-curl http://localhost:8080/metrics
 ```
 
 ## Links
