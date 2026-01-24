@@ -1,0 +1,33 @@
+name: Push commits
+on:
+  push:
+    branches: [master]
+    tags-ignore: ['*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.24.x
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Test
+        run: go test ./...
+      - name: Generate coverage report
+        run: ./.github/workflows/codecov.sh
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.6
