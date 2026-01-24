@@ -215,6 +215,7 @@ func httpGet(url string) (string, error) {
 	return string(body), nil
 }
 
+//nolint:unparam
 func sendMQTTMessage(t *testing.T, addr, topic, payload string) error {
 	t.Helper()
 

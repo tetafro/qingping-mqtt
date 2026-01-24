@@ -45,15 +45,16 @@ linters:
     - wrapcheck
   exclusions:
     rules:
-      - linters:
+      - path: _test\.go
+        linters:
           - cyclop
           - dupl
           - errcheck
+          - gocognit
           - goconst
           - gocyclo
           - gosec
           - noctx
-        path: _test\.go
       - path: main.go
         text: '`defer cancel\(\)` will not run'
       - path: (.+)\.go$
