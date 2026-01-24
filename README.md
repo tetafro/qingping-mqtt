@@ -1,5 +1,9 @@
 # QingPing MQTT
 
+[![Codecov](https://codecov.io/gh/tetafro/qingping-mqtt/branch/master/graph/badge.svg)](https://codecov.io/gh/tetafro/qingping-mqtt)
+[![Go Report](https://goreportcard.com/badge/github.com/tetafro/qingping-mqtt)](https://goreportcard.com/report/github.com/tetafro/qingping-mqtt)
+[![CI](https://github.com/tetafro/qingping-mqtt/actions/workflows/push.yml/badge.svg)](https://github.com/tetafro/qingping-mqtt/actions)
+
 Expose metrics from Qingping Lite air quality monitor.
 
 MQTT broker + Prometheus exporter.
