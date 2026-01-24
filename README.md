@@ -8,8 +8,30 @@ Expose metrics from Qingping Lite air quality monitor.
 
 MQTT broker + Prometheus exporter.
 
+## Run binary
+
+Download the latest [release](https://github.com/tetafro/qingping-mqtt/releases).
+
+Run
+```sh
+./qingping-mqtt \
+    -http-addr 0.0.0.0:8080 \
+    -mqtt-addr 0.0.0.0:1883 \
+```
+
+## Run in Docker
+
+Find the latest tag in [packages](https://github.com/tetafro/qingping-mqtt/pkgs/container/qingping-mqtt).
+
+Run
+```sh
+docker run -d -p 8080:8080 -p 1883:1883 \
+    ghcr.io/tetafro/qingping-mqtt
+```
+
 ## Build and run
 
+Run binary
 ```sh
 make build run
 ```
