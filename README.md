@@ -22,6 +22,8 @@ To set up your device to send metrics to a remote MQTT broker follow the steps:
     - Up topic: `qingping/your-device-name/up`
     - Down topic: `qingping/your-device-name/down`
 
+    By default `qingping-mqtt` listens to all `qingping/*` topics.
+
 1. Go to "Push Configuration" and add the configuration from the previous step for
     your device.
 
@@ -51,3 +53,7 @@ Docker image
 ```sh
 make docker
 ```
+
+## Metrics
+
+The list of exposed metrics can be found in [metrics.go](./metrics.go).
