@@ -176,7 +176,7 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	}
 
 	if msg.Type == HeadrbeatType {
-		h.heartbeat()
+		h.heartbeat(msg.MAC)
 		return pk, nil
 	}
 
@@ -188,7 +188,7 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 			data = d
 		}
 	}
-	h.setMetrics(data)
+	h.setMetrics(msg.MAC, data)
 
 	if msg.NeedAck == 1 {
 		h.sendAcknowledgment(pk.TopicName, msg.ID)
@@ -228,7 +228,7 @@ func (h *MessageHook) sendAcknowledgment(upTopic string, msgID int) {
 	log.Debug("Sent acknowledgment")
 }
 
-func (h *MessageHook) heartbeat() {
+func (h *MessageHook) heartbeat(mac string) {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 
@@ -240,22 +240,22 @@ func (h *MessageHook) heartbeat() {
 	go func() {
 		time.Sleep(3 * HeartBeatInterval)
 		if !h.lastSeen.After(lastSeen) {
-			h.setMetrics(SensorData{})
+			h.setMetrics(mac, SensorData{})
 		}
 	}()
 }
 
-func (h *MessageHook) setMetrics(data SensorData) {
+func (h *MessageHook) setMetrics(mac string, data SensorData) {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 
-	temperatureGauge.Set(data.Temperature.Value)
-	humidityGauge.Set(data.Humidity.Value)
-	co2Gauge.Set(data.CO2.Value)
-	pm1Gauge.Set(data.PM1.Value)
-	pm25Gauge.Set(data.PM25.Value)
-	pm10Gauge.Set(data.PM10.Value)
-	tvocGauge.Set(data.TVOC.Value)
-	radonGauge.Set(data.Radon.Value)
-	batteryGauge.Set(data.Battery.Value)
+	temperatureGauge.WithLabelValues(mac).Set(data.Temperature.Value)
+	humidityGauge.WithLabelValues(mac).Set(data.Humidity.Value)
+	co2Gauge.WithLabelValues(mac).Set(data.CO2.Value)
+	pm1Gauge.WithLabelValues(mac).Set(data.PM1.Value)
+	pm25Gauge.WithLabelValues(mac).Set(data.PM25.Value)
+	pm10Gauge.WithLabelValues(mac).Set(data.PM10.Value)
+	tvocGauge.WithLabelValues(mac).Set(data.TVOC.Value)
+	radonGauge.WithLabelValues(mac).Set(data.Radon.Value)
+	batteryGauge.WithLabelValues(mac).Set(data.Battery.Value)
 }

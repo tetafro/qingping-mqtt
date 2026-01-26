@@ -7,42 +7,42 @@ import (
 
 var (
 	// Sensor metrics.
-	temperatureGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	temperatureGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_temperature_celsius",
 		Help: "Temperature in Celsius",
-	})
-	humidityGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	humidityGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_humidity_percent",
 		Help: "Humidity in percent",
-	})
-	co2Gauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	co2Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_co2_ppm",
 		Help: "CO2 level in parts per million",
-	})
-	pm1Gauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	pm1Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_pm1_ugm3",
 		Help: "PM1 particulate matter in mg/m3",
-	})
-	pm25Gauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	pm25Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_pm25_ugm3",
 		Help: "PM2.5 particulate matter in mg/m3",
-	})
-	pm10Gauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	pm10Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_pm10_ugm3",
 		Help: "PM10 particulate matter in mg/m3",
-	})
-	tvocGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	tvocGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_tvoc_ppb",
 		Help: "Total Volatile Organic Compounds in parts per billion",
-	})
-	radonGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	radonGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_radon_index",
 		Help: "Radon index",
-	})
-	batteryGauge = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{"mac"})
+	batteryGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "qingping_battery_percent",
 		Help: "Battery level in percent",
-	})
+	}, []string{"mac"})
 
 	// Service metrics.
 	messagesReceivedCounter = promauto.NewCounterVec(prometheus.CounterOpts{
