@@ -100,13 +100,13 @@ func TestApp(t *testing.T) {
 		if !strings.Contains(body, "qingping_mqtt_acks_sent_total 1") {
 			t.Fatal("Expected qingping_mqtt_acks_sent_total to be 1")
 		}
-		if !strings.Contains(body, `qingping_temperature_celsius{mac="112233445566"} 23.5`) {
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="112233445566",topic="qingping/test-device/up"} 23.5`) {
 			t.Fatal("Expected temperature metric to be 23.5")
 		}
-		if !strings.Contains(body, `qingping_humidity_percent{mac="112233445566"} 45.2`) {
+		if !strings.Contains(body, `qingping_humidity_percent{mac="112233445566",topic="qingping/test-device/up"} 45.2`) {
 			t.Fatal("Expected humidity metric to be 45.2")
 		}
-		if !strings.Contains(body, `qingping_co2_ppm{mac="112233445566"} 850`) {
+		if !strings.Contains(body, `qingping_co2_ppm{mac="112233445566",topic="qingping/test-device/up"} 850`) {
 			t.Error("Expected CO2 metric to be 850")
 		}
 	})

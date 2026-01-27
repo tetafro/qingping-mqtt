@@ -176,7 +176,7 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	}
 
 	if msg.Type == HeadrbeatType {
-		h.heartbeat(msg.MAC)
+		h.heartbeat(msg.MAC, pk.TopicName)
 		return pk, nil
 	}
 
@@ -188,7 +188,7 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 			data = d
 		}
 	}
-	h.setMetrics(msg.MAC, data)
+	h.setMetrics(msg.MAC, pk.TopicName, data)
 
 	if msg.NeedAck == 1 {
 		h.sendAcknowledgment(pk.TopicName, msg.ID)
@@ -228,7 +228,7 @@ func (h *MessageHook) sendAcknowledgment(upTopic string, msgID int) {
 	log.Debug("Sent acknowledgment")
 }
 
-func (h *MessageHook) heartbeat(mac string) {
+func (h *MessageHook) heartbeat(mac, topic string) {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 
@@ -240,22 +240,22 @@ func (h *MessageHook) heartbeat(mac string) {
 	go func() {
 		time.Sleep(3 * HeartBeatInterval)
 		if !h.lastSeen.After(lastSeen) {
-			h.setMetrics(mac, SensorData{})
+			h.setMetrics(mac, topic, SensorData{})
 		}
 	}()
 }
 
-func (h *MessageHook) setMetrics(mac string, data SensorData) {
+func (h *MessageHook) setMetrics(mac, topic string, data SensorData) {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 
-	temperatureGauge.WithLabelValues(mac).Set(data.Temperature.Value)
-	humidityGauge.WithLabelValues(mac).Set(data.Humidity.Value)
-	co2Gauge.WithLabelValues(mac).Set(data.CO2.Value)
-	pm1Gauge.WithLabelValues(mac).Set(data.PM1.Value)
-	pm25Gauge.WithLabelValues(mac).Set(data.PM25.Value)
-	pm10Gauge.WithLabelValues(mac).Set(data.PM10.Value)
-	tvocGauge.WithLabelValues(mac).Set(data.TVOC.Value)
-	radonGauge.WithLabelValues(mac).Set(data.Radon.Value)
-	batteryGauge.WithLabelValues(mac).Set(data.Battery.Value)
+	temperatureGauge.WithLabelValues(mac, topic).Set(data.Temperature.Value)
+	humidityGauge.WithLabelValues(mac, topic).Set(data.Humidity.Value)
+	co2Gauge.WithLabelValues(mac, topic).Set(data.CO2.Value)
+	pm1Gauge.WithLabelValues(mac, topic).Set(data.PM1.Value)
+	pm25Gauge.WithLabelValues(mac, topic).Set(data.PM25.Value)
+	pm10Gauge.WithLabelValues(mac, topic).Set(data.PM10.Value)
+	tvocGauge.WithLabelValues(mac, topic).Set(data.TVOC.Value)
+	radonGauge.WithLabelValues(mac, topic).Set(data.Radon.Value)
+	batteryGauge.WithLabelValues(mac, topic).Set(data.Battery.Value)
 }
