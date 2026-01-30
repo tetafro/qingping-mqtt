@@ -16,8 +16,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// HeartBeatInterval is the expected interval of heartbeats from the device.
-const HeartBeatInterval = 1 * time.Minute
+// HeartbeatInterval is the expected interval of heartbeats from the device.
+var HeartbeatInterval = 1 * time.Minute
 
 // List of known message types.
 const (
@@ -101,8 +101,9 @@ func NewMQTTBroker(addr, topic string, log *logrus.Logger) (*MQTTBroker, error) 
 
 	// Add message handler hook
 	hook := &MessageHook{
-		publish: broker.server.Publish,
-		log:     log,
+		publish:  broker.server.Publish,
+		log:      log,
+		lastSeen: make(map[string]time.Time),
 	}
 	err = broker.server.AddHook(hook, nil)
 	if err != nil {
@@ -136,7 +137,7 @@ func (b *MQTTBroker) Stop() error {
 type MessageHook struct {
 	mqtt.HookBase
 	publish  PublishFunc
-	lastSeen time.Time
+	lastSeen map[string]time.Time
 	mx       sync.Mutex
 	log      *logrus.Logger
 }
@@ -175,8 +176,11 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 		return pk, nil
 	}
 
+	// Mark the device as alive
+	h.alive(msg.MAC, pk.TopicName)
+
+	// Do nothing on heartbeat
 	if msg.Type == HeadrbeatType {
-		h.heartbeat(msg.MAC, pk.TopicName)
 		return pk, nil
 	}
 
@@ -184,7 +188,8 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	var data SensorData
 	var latest float64
 	for _, d := range msg.SensorData {
-		if d.Timestamp.Value > latest {
+		if d.Timestamp.Value >= latest {
+			latest = d.Timestamp.Value
 			data = d
 		}
 	}
@@ -228,21 +233,30 @@ func (h *MessageHook) sendAcknowledgment(upTopic string, msgID int) {
 	log.Debug("Sent acknowledgment")
 }
 
-func (h *MessageHook) heartbeat(mac, topic string) {
-	h.mx.Lock()
-	defer h.mx.Unlock()
+func (h *MessageHook) alive(mac, topic string) {
+	t := time.Now()
+	h.setLastSeen(mac, t)
 
-	h.lastSeen = time.Now()
-	lastSeen := h.lastSeen
-
-	// If `lastSeen` has not increased after some time,
-	// set all metrics to 0
 	go func() {
-		time.Sleep(3 * HeartBeatInterval)
-		if !h.lastSeen.After(lastSeen) {
+		time.Sleep(3 * HeartbeatInterval)
+		if !h.getLastSeen(mac).After(t) {
 			h.setMetrics(mac, topic, SensorData{})
 		}
 	}()
+}
+
+func (h *MessageHook) getLastSeen(mac string) time.Time {
+	h.mx.Lock()
+	defer h.mx.Unlock()
+
+	return h.lastSeen[mac]
+}
+
+func (h *MessageHook) setLastSeen(mac string, t time.Time) {
+	h.mx.Lock()
+	defer h.mx.Unlock()
+
+	h.lastSeen[mac] = t
 }
 
 func (h *MessageHook) setMetrics(mac, topic string, data SensorData) {

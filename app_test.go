@@ -198,6 +198,78 @@ func TestApp(t *testing.T) {
 			t.Error("Expected heartbeat message to be counted")
 		}
 	})
+
+	t.Run("heartbeat timeout resets metrics", func(t *testing.T) {
+		// Save original interval and restore after test
+		originalInterval := HeartbeatInterval
+		defer func() { HeartbeatInterval = originalInterval }()
+
+		// Set a short interval for testing
+		HeartbeatInterval = 10 * time.Millisecond
+
+		// Send initial data for device 1
+		msg := `{
+			"type": "17",
+			"mac": "MAC1",
+			"sensorData": [{
+				"temperature": {"value": 20.0},
+				"humidity": {"value": 60.0}
+			}]
+		}`
+		err := sendMQTTMessage(t, mqttAddr, "qingping/device1/up", msg)
+		if err != nil {
+			t.Fatalf("Failed to send MQTT message for device 1: %v", err)
+		}
+
+		// Send initial data for device 2
+		msg = `{
+			"type": "17",
+			"mac": "MAC2",
+			"sensorData": [{
+				"temperature": {"value": 20.0},
+				"humidity": {"value": 60.0}
+			}]
+		}`
+		err = sendMQTTMessage(t, mqttAddr, "qingping/device2/up", msg)
+		if err != nil {
+			t.Fatalf("Failed to send MQTT message for device 2: %v", err)
+		}
+
+		// Wait for message processing
+		time.Sleep(10 * time.Millisecond)
+
+		// Keep sending heartbeats for device 1 only
+		msg = `{"type": "13", "mac": "MAC1"}`
+		for range 4 {
+			err = sendMQTTMessage(t, mqttAddr, "qingping/device1/up", msg)
+			if err != nil {
+				t.Fatalf("Failed to send heartbeat for device 1: %v", err)
+			}
+			time.Sleep(HeartbeatInterval)
+		}
+
+		// Check metrics
+		body, err := httpGet(fmt.Sprintf("http://%s/metrics", httpAddr))
+		if err != nil {
+			t.Fatalf("Failed to read metrics: %v", err)
+		}
+
+		// Device 1 should have its original metrics
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC1",topic="qingping/device1/up"} 20`) {
+			t.Errorf("Expected device 1 temperature to remain 20")
+		}
+		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC1",topic="qingping/device1/up"} 60`) {
+			t.Errorf("Expected device 1 humidity to remain 60")
+		}
+
+		// Device 2 should still have empty metrics
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC2",topic="qingping/device2/up"} 0`) {
+			t.Errorf("Expected device 2 temperature to be reset to 0")
+		}
+		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC2",topic="qingping/device2/up"} 0`) {
+			t.Errorf("Expected device 2 humidity to be reset to 0")
+		}
+	})
 }
 
 func httpGet(url string) (string, error) {
@@ -215,7 +287,6 @@ func httpGet(url string) (string, error) {
 	return string(body), nil
 }
 
-//nolint:unparam
 func sendMQTTMessage(t *testing.T, addr, topic, payload string) error {
 	t.Helper()
 
