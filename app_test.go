@@ -20,6 +20,9 @@ func TestApp(t *testing.T) {
 	mqttAddr := "127.0.0.1:11883"
 	mqttTopic := "qingping/#"
 
+	// Set a short interval for testing
+	HeartbeatInterval = 50 * time.Millisecond
+
 	app, err := NewApp(httpAddr, mqttAddr, mqttTopic, log)
 	if err != nil {
 		t.Fatalf("Failed to create app: %v", err)
@@ -200,13 +203,6 @@ func TestApp(t *testing.T) {
 	})
 
 	t.Run("heartbeat timeout resets metrics", func(t *testing.T) {
-		// Save original interval and restore after test
-		originalInterval := HeartbeatInterval
-		defer func() { HeartbeatInterval = originalInterval }()
-
-		// Set a short interval for testing
-		HeartbeatInterval = 10 * time.Millisecond
-
 		// Send initial data for device 1
 		msg := `{
 			"type": "17",
