@@ -64,13 +64,9 @@ type SensorData struct {
 }
 
 // ValueWrapper wraps sensor values with optional additional fields.
+// Most fields from the spec are omitted, as they are not used.
 type ValueWrapper struct {
-	Value           float64 `json:"value"`
-	Status          *int    `json:"status,omitempty"`
-	Level           *int    `json:"level,omitempty"`
-	Unit            string  `json:"unit,omitempty"`
-	StatusDuration  *int    `json:"status_duration,omitempty"`
-	StatusStartTime *int64  `json:"status_start_time,omitempty"`
+	Value float64 `json:"value"`
 }
 
 // AckResponse represents the acknowledgment message sent back to the device.
