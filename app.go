@@ -19,7 +19,7 @@ type App struct {
 }
 
 // NewApp creates and initializes a new application instance.
-func NewApp(httpAddr, mqttAddr, mqttTopic string, log *logrus.Logger) (*App, error) {
+func NewApp(httpAddr, mqttAddr string, log *logrus.Logger) (*App, error) {
 	var app App
 
 	// Create HTTP server
@@ -37,7 +37,7 @@ func NewApp(httpAddr, mqttAddr, mqttTopic string, log *logrus.Logger) (*App, err
 	}
 
 	// Create MQTT broker
-	broker, err := NewMQTTBroker(mqttAddr, mqttTopic, log)
+	broker, err := NewMQTTBroker(mqttAddr, log)
 	if err != nil {
 		return nil, fmt.Errorf("create MQTT broker: %w", err)
 	}

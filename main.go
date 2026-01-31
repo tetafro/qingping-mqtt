@@ -16,7 +16,6 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debug logs")
 	httpAddr := flag.String("http-addr", "0.0.0.0:8080", "HTTP server listen address")
 	mqttAddr := flag.String("mqtt-addr", "0.0.0.0:1883", "MQTT broker listen address")
-	mqttTopic := flag.String("mqtt-topic", "qingping/#", "MQTT topic to subscribe to (# - wildcard)")
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(
@@ -35,7 +34,7 @@ func main() {
 	}
 	log.SetLevel(level)
 
-	app, err := NewApp(*httpAddr, *mqttAddr, *mqttTopic, log)
+	app, err := NewApp(*httpAddr, *mqttAddr, log)
 	if err != nil {
 		log.Fatalf("Failed to create application: %v", err)
 	}

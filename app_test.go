@@ -18,12 +18,11 @@ func TestApp(t *testing.T) {
 
 	httpAddr := "127.0.0.1:18080"
 	mqttAddr := "127.0.0.1:11883"
-	mqttTopic := "qingping/#"
 
 	// Set a short interval for testing
 	HeartbeatInterval = 50 * time.Millisecond
 
-	app, err := NewApp(httpAddr, mqttAddr, mqttTopic, log)
+	app, err := NewApp(httpAddr, mqttAddr, log)
 	if err != nil {
 		t.Fatalf("Failed to create app: %v", err)
 	}
