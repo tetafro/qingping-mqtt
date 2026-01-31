@@ -20,18 +20,42 @@ import (
 // HeartbeatInterval is the expected interval of heartbeats from the device.
 var HeartbeatInterval = 1 * time.Minute
 
-// List of known message types.
+// List of message types.
+// https://developer.qingping.co/private/communication-protocols/public-mqtt-json
 const (
-	RealTimeDataType = "12"
-	HeadrbeatType    = "13"
-	HistoryDataType  = "17"
+	BLEConnectionRequestType        = "1"
+	BLEDisconnectionRequestType     = "2"
+	BLEOpenNotificationRequestType  = "3"
+	BLECloseNotificationRequestType = "4"
+	BLENotificationResponseType     = "5"
+	BLEDataWithResponseType         = "6"
+	BLEReadDataType                 = "7"
+	BLEDataResponseType             = "8"
+	BroadcastDataType               = "9"
+	DeviceListRequestType           = "10"
+	DeviceListResponseType          = "11"
+	RealTimeSensorDataType          = "12"
+	HeartbeatType                   = "13"
+	MQTTReconnectType               = "14"
+	BLEDataWithoutResponseType      = "15"
+	MQTTConnectionSettingType       = "16"
+	HistorySensorDataType           = "17"
+	HistoryDataResponseType         = "18"
+	DeviceLogReportType             = "19"
+	BindingStatusType               = "20"
+	OTACommandType                  = "23"
+	OTAResponseType                 = "24"
+	DeviceListWithNameRequestType   = "25"
+	DeviceListWithNameResponseType  = "26"
+	ThirdPartyBindingStatusType     = "27"
+	DeviceSettingReadRequestType    = "28"
 )
 
 // AllowedMessageTypes is the list of message types that the app can process.
 var AllowedMessageTypes = []string{
-	RealTimeDataType,
-	HeadrbeatType,
-	HistoryDataType,
+	HeartbeatType,
+	RealTimeSensorDataType,
+	HistorySensorDataType,
 }
 
 // MQTTBroker wraps the MQTT server and provides message handling.
@@ -215,7 +239,7 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	h.alive(mac)
 
 	// Do nothing on heartbeat
-	if msg.Type == HeadrbeatType {
+	if msg.Type == HeartbeatType {
 		return pk, nil
 	}
 
