@@ -98,8 +98,8 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{topic="qingping/test-device/up",type="17"} 1`) {
-			t.Fatal("Expected qingping_mqtt_messages_received_total{topic=\"qingping/test-device/up\",type=\"17\"} to be 1")
+		if !strings.Contains(body, `qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="17"} 1`) {
+			t.Fatal(`Expected qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="17"} to be 1`)
 		}
 		if !strings.Contains(body, `qingping_mqtt_acks_sent_total{topic="qingping/test-device/up"} 1`) {
 			t.Fatal("Expected qingping_mqtt_acks_sent_total{topic=\"qingping/test-device/up\"} to be 1")
@@ -195,7 +195,7 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{topic="qingping/test-device/up",type="13"} 1`) {
+		if !strings.Contains(body, `qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="13"} 1`) {
 			t.Error("Expected heartbeat message to be counted")
 		}
 	})

@@ -48,7 +48,7 @@ var (
 	MessagesReceivedCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "qingping_mqtt_messages_received_total",
 		Help: "Total number of MQTT messages received by message type",
-	}, []string{"type", "topic"})
+	}, []string{"type", "topic", "mac"})
 	AcksSentCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "qingping_mqtt_acks_sent_total",
 		Help: "Total number of acknowledgments sent to devices",

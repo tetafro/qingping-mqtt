@@ -197,17 +197,18 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 		ParseErrorsCounter.WithLabelValues(pk.TopicName).Inc()
 		return pk, nil
 	}
-	MessagesReceivedCounter.WithLabelValues(msg.Type, pk.TopicName).Inc()
-
-	if !slices.Contains(AllowedMessageTypes, msg.Type) {
-		h.log.WithField("type", msg.Type).Debug("Ignoring message type")
-		return pk, nil
-	}
 
 	// In different types of messages MAC address is set in defferent fields
 	mac := msg.MAC
 	if msg.WifiMAC != "" {
 		mac = msg.WifiMAC
+	}
+
+	MessagesReceivedCounter.WithLabelValues(msg.Type, pk.TopicName, mac).Inc()
+
+	if !slices.Contains(AllowedMessageTypes, msg.Type) {
+		h.log.WithField("type", msg.Type).Debug("Ignoring message type")
+		return pk, nil
 	}
 
 	// Mark the device as alive
