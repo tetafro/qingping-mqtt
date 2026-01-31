@@ -27,6 +27,12 @@ To set up your device to send metrics to a remote MQTT broker follow the steps:
 1. Go to "Push Configuration" and add the configuration from the previous step for
     your device.
 
+Known problems:
+
+- Once your device is set, it will work fine until the first reboot. After a
+    reboot it will stop sending any metrics for an unknown reason. The only way
+    to fix this is to do a hard reset and set up everything from scratch.
+
 ## Run
 
 Download and run a pre-built binary ([releases](https://github.com/tetafro/qingping-mqtt/releases))
