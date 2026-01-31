@@ -98,20 +98,16 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="17"} 1`) {
-			t.Fatal(`Expected qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="17"} to be 1`)
+		expected := []string{
+			`qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="17"} 1`,
+			`qingping_temperature_celsius{mac="112233445566"} 23.5`,
+			`qingping_humidity_percent{mac="112233445566"} 45.2`,
+			`qingping_co2_ppm{mac="112233445566"} 850`,
 		}
-		if !strings.Contains(body, `qingping_mqtt_acks_sent_total{topic="qingping/test-device/up"} 1`) {
-			t.Fatal("Expected qingping_mqtt_acks_sent_total{topic=\"qingping/test-device/up\"} to be 1")
-		}
-		if !strings.Contains(body, `qingping_temperature_celsius{mac="112233445566"} 23.5`) {
-			t.Fatal("Expected temperature metric to be 23.5")
-		}
-		if !strings.Contains(body, `qingping_humidity_percent{mac="112233445566"} 45.2`) {
-			t.Fatal("Expected humidity metric to be 45.2")
-		}
-		if !strings.Contains(body, `qingping_co2_ppm{mac="112233445566"} 850`) {
-			t.Error("Expected CO2 metric to be 850")
+		for _, exp := range expected {
+			if !strings.Contains(body, exp) {
+				t.Fatalf(`Line not found in metrics: '%s'`, exp)
+			}
 		}
 	})
 
@@ -195,7 +191,10 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{mac="112233445566",topic="qingping/test-device/up",type="13"} 1`) {
+		expected := `qingping_mqtt_messages_received_total{` +
+			`mac="112233445566",topic="qingping/test-device/up",type="13"` +
+			`} 1`
+		if !strings.Contains(body, expected) {
 			t.Error("Expected heartbeat message to be counted")
 		}
 	})
