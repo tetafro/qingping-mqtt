@@ -47,12 +47,12 @@ func NewApp(httpAddr, mqttAddr string, log *logrus.Logger) (*App, error) {
 }
 
 // Start starts all application services (MQTT broker and HTTP server).
-func (a *App) Start() error {
+func (a *App) Start(ctx context.Context) error {
 	var g errgroup.Group
 
 	// Start MQTT broker
 	g.Go(func() error {
-		err := a.mqtt.Start()
+		err := a.mqtt.Start(ctx)
 		if err != nil {
 			return fmt.Errorf("MQTT broker error: %w", err)
 		}

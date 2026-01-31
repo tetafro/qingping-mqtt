@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -35,8 +36,10 @@ var AllowedMessageTypes = []string{
 
 // MQTTBroker wraps the MQTT server and provides message handling.
 type MQTTBroker struct {
-	server *mqtt.Server
-	topic  string
+	server  *mqtt.Server
+	clients map[string]time.Time
+	mx      sync.Mutex
+	log     *logrus.Logger
 }
 
 // QingpingMessage represents the message envelope from Qingping devices.
@@ -80,14 +83,15 @@ type AckResponse struct {
 }
 
 // NewMQTTBroker creates and configures a new MQTT broker.
-func NewMQTTBroker(addr, topic string, log *logrus.Logger) (*MQTTBroker, error) {
+func NewMQTTBroker(addr string, log *logrus.Logger) (*MQTTBroker, error) {
 	opts := &mqtt.Options{
 		InlineClient: true, // allow publishing from within hooks
 		Logger:       slog.New(slog.DiscardHandler),
 	}
 	broker := &MQTTBroker{
-		server: mqtt.New(opts),
-		topic:  topic,
+		server:  mqtt.New(opts),
+		clients: make(map[string]time.Time),
+		log:     log,
 	}
 
 	// Allow all connections (no authentication for simplicity)
@@ -98,9 +102,13 @@ func NewMQTTBroker(addr, topic string, log *logrus.Logger) (*MQTTBroker, error) 
 
 	// Add message handler hook
 	hook := &MessageHook{
-		publish:  broker.server.Publish,
-		log:      log,
-		lastSeen: make(map[string]time.Time),
+		publish: broker.server.Publish,
+		alive: func(mac string) {
+			broker.mx.Lock()
+			broker.clients[mac] = time.Now()
+			broker.mx.Unlock()
+		},
+		log: log,
 	}
 	err = broker.server.AddHook(hook, nil)
 	if err != nil {
@@ -121,7 +129,28 @@ func NewMQTTBroker(addr, topic string, log *logrus.Logger) (*MQTTBroker, error) 
 }
 
 // Start starts the MQTT broker.
-func (b *MQTTBroker) Start() error {
+func (b *MQTTBroker) Start(ctx context.Context) error {
+	// Check liveness of devices in a background loop
+	go func() {
+		ticker := time.NewTicker(HeartbeatInterval / 10)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := ctx.Err(); err != nil {
+				return
+			}
+			b.mx.Lock()
+			for mac, lastSeen := range b.clients {
+				since := time.Since(lastSeen)
+				if since > 3*HeartbeatInterval {
+					b.log.WithFields(logrus.Fields{"mac": mac}).Debugf("Client is dead")
+					SetMetrics(mac, SensorData{})
+					delete(b.clients, mac)
+				}
+			}
+			b.mx.Unlock()
+		}
+	}()
+
 	return b.server.Serve() //nolint:wrapcheck
 }
 
@@ -133,14 +162,16 @@ func (b *MQTTBroker) Stop() error {
 // MessageHook handles MQTT message events.
 type MessageHook struct {
 	mqtt.HookBase
-	publish  PublishFunc
-	lastSeen map[string]time.Time
-	mx       sync.Mutex
-	log      *logrus.Logger
+	publish PublishFunc
+	alive   AliveFunc
+	log     *logrus.Logger
 }
 
 // PublishFunc describes sending message to topics.
 type PublishFunc func(topic string, payload []byte, retain bool, qos byte) error
+
+// AliveFunc marks a client as alive.
+type AliveFunc func(mac string)
 
 // ID returns the hook ID.
 func (h *MessageHook) ID() string {
@@ -163,10 +194,10 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	var msg QingpingMessage
 	if err := json.Unmarshal(pk.Payload, &msg); err != nil {
 		h.log.WithError(err).Error("Failed to parse message")
-		parseErrorsCounter.Inc()
+		ParseErrorsCounter.WithLabelValues(pk.TopicName).Inc()
 		return pk, nil
 	}
-	messagesReceivedCounter.WithLabelValues(msg.Type).Inc()
+	MessagesReceivedCounter.WithLabelValues(msg.Type, pk.TopicName).Inc()
 
 	if !slices.Contains(AllowedMessageTypes, msg.Type) {
 		h.log.WithField("type", msg.Type).Debug("Ignoring message type")
@@ -188,15 +219,17 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 	}
 
 	// Take the latest data
-	var data SensorData
-	var latest float64
-	for _, d := range msg.SensorData {
-		if d.Timestamp.Value >= latest {
-			latest = d.Timestamp.Value
-			data = d
+	if len(msg.SensorData) > 0 {
+		var data SensorData
+		var latest float64
+		for _, d := range msg.SensorData {
+			if d.Timestamp.Value >= latest {
+				latest = d.Timestamp.Value
+				data = d
+			}
 		}
+		SetMetrics(mac, data)
 	}
-	h.setMetrics(msg.MAC, pk.TopicName, data)
 
 	if msg.NeedAck == 1 {
 		h.sendAcknowledgment(pk.TopicName, msg.ID)
@@ -222,57 +255,16 @@ func (h *MessageHook) sendAcknowledgment(upTopic string, msgID int) {
 	payload, err := json.Marshal(ack)
 	if err != nil {
 		log.WithError(err).Error("Failed to marshal acknowledgment")
-		ackErrorsCounter.Inc()
+		AckErrorsCounter.WithLabelValues(downTopic).Inc()
 		return
 	}
 
 	if err := h.publish(downTopic, payload, false, 0); err != nil {
 		log.WithError(err).Error("Failed to publish acknowledgment")
-		ackErrorsCounter.Inc()
+		AckErrorsCounter.WithLabelValues(downTopic).Inc()
 		return
 	}
 
-	acksSentCounter.Inc()
+	AcksSentCounter.WithLabelValues(upTopic).Inc()
 	log.Debug("Sent acknowledgment")
-}
-
-func (h *MessageHook) alive(mac, topic string) {
-	t := time.Now()
-	h.setLastSeen(mac, t)
-
-	go func() {
-		time.Sleep(3 * HeartbeatInterval)
-		if !h.getLastSeen(mac).After(t) {
-			h.setMetrics(mac, topic, SensorData{})
-		}
-	}()
-}
-
-func (h *MessageHook) getLastSeen(mac string) time.Time {
-	h.mx.Lock()
-	defer h.mx.Unlock()
-
-	return h.lastSeen[mac]
-}
-
-func (h *MessageHook) setLastSeen(mac string, t time.Time) {
-	h.mx.Lock()
-	defer h.mx.Unlock()
-
-	h.lastSeen[mac] = t
-}
-
-func (h *MessageHook) setMetrics(mac, topic string, data SensorData) {
-	h.mx.Lock()
-	defer h.mx.Unlock()
-
-	temperatureGauge.WithLabelValues(mac, topic).Set(data.Temperature.Value)
-	humidityGauge.WithLabelValues(mac, topic).Set(data.Humidity.Value)
-	co2Gauge.WithLabelValues(mac, topic).Set(data.CO2.Value)
-	pm1Gauge.WithLabelValues(mac, topic).Set(data.PM1.Value)
-	pm25Gauge.WithLabelValues(mac, topic).Set(data.PM25.Value)
-	pm10Gauge.WithLabelValues(mac, topic).Set(data.PM10.Value)
-	tvocGauge.WithLabelValues(mac, topic).Set(data.TVOC.Value)
-	radonGauge.WithLabelValues(mac, topic).Set(data.Radon.Value)
-	batteryGauge.WithLabelValues(mac, topic).Set(data.Battery.Value)
 }

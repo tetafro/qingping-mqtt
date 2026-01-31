@@ -50,7 +50,7 @@ func main() {
 	log.WithField("http_addr", *httpAddr).
 		WithField("mqtt_addr", *mqttAddr).
 		Info("Starting...")
-	if err := app.Start(); err != nil {
+	if err := app.Start(ctx); err != nil {
 		log.Fatalf("Failed to start application: %v", err)
 	}
 	log.Info("Shutdown")

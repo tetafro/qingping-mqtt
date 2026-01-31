@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 )
 
 func TestApp(t *testing.T) {
+	ctx := context.Background()
 	log := logrus.New()
 	log.Out = io.Discard
 
@@ -28,7 +30,7 @@ func TestApp(t *testing.T) {
 	}
 
 	go func() {
-		if err := app.Start(); err != nil {
+		if err := app.Start(ctx); err != nil {
 			t.Errorf("Failed to start app: %v", err)
 		}
 	}()
@@ -96,19 +98,19 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{type="17"} 1`) {
-			t.Fatal("Expected qingping_mqtt_messages_received_total{type=\"17\"} to be 1")
+		if !strings.Contains(body, `qingping_mqtt_messages_received_total{topic="qingping/test-device/up",type="17"} 1`) {
+			t.Fatal("Expected qingping_mqtt_messages_received_total{topic=\"qingping/test-device/up\",type=\"17\"} to be 1")
 		}
-		if !strings.Contains(body, "qingping_mqtt_acks_sent_total 1") {
-			t.Fatal("Expected qingping_mqtt_acks_sent_total to be 1")
+		if !strings.Contains(body, `qingping_mqtt_acks_sent_total{topic="qingping/test-device/up"} 1`) {
+			t.Fatal("Expected qingping_mqtt_acks_sent_total{topic=\"qingping/test-device/up\"} to be 1")
 		}
-		if !strings.Contains(body, `qingping_temperature_celsius{mac="112233445566",topic="qingping/test-device/up"} 23.5`) {
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="112233445566"} 23.5`) {
 			t.Fatal("Expected temperature metric to be 23.5")
 		}
-		if !strings.Contains(body, `qingping_humidity_percent{mac="112233445566",topic="qingping/test-device/up"} 45.2`) {
+		if !strings.Contains(body, `qingping_humidity_percent{mac="112233445566"} 45.2`) {
 			t.Fatal("Expected humidity metric to be 45.2")
 		}
-		if !strings.Contains(body, `qingping_co2_ppm{mac="112233445566",topic="qingping/test-device/up"} 850`) {
+		if !strings.Contains(body, `qingping_co2_ppm{mac="112233445566"} 850`) {
 			t.Error("Expected CO2 metric to be 850")
 		}
 	})
@@ -129,7 +131,7 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, "qingping_mqtt_parse_errors_total 1") {
+		if !strings.Contains(body, `qingping_mqtt_parse_errors_total{topic="qingping/test-device/up"} 1`) {
 			t.Error("Expected parse error counter to be incremented")
 		}
 	})
@@ -152,7 +154,7 @@ func TestApp(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
-		acksBefore := strings.Count(body, "qingping_mqtt_acks_sent_total")
+		acksBefore := strings.Count(body, `qingping_mqtt_acks_sent_total{topic="qingping/test-device/up"}`)
 
 		err = sendMQTTMessage(t, mqttAddr, "qingping/test-device/up", message)
 		if err != nil {
@@ -166,7 +168,7 @@ func TestApp(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
-		acksAfter := strings.Count(body, "qingping_mqtt_acks_sent_total")
+		acksAfter := strings.Count(body, `qingping_mqtt_acks_sent_total{topic="qingping/test-device/up"}`)
 
 		if acksAfter != acksBefore {
 			t.Error("Expected no acknowledgment to be sent")
@@ -177,10 +179,7 @@ func TestApp(t *testing.T) {
 		message := `{
 			"type": "13",
 			"id": 11111,
-			"need_ack": 0,
-			"mac": "112233445566",
-			"timestamp": 1594815555,
-			"sensorData": []
+			"wifi_mac": "112233445566"
 		}`
 
 		err := sendMQTTMessage(t, mqttAddr, "qingping/test-device/up", message)
@@ -196,7 +195,7 @@ func TestApp(t *testing.T) {
 			t.Fatalf("Failed to read metrics: %v", err)
 		}
 
-		if !strings.Contains(body, `qingping_mqtt_messages_received_total{type="13"} 1`) {
+		if !strings.Contains(body, `qingping_mqtt_messages_received_total{topic="qingping/test-device/up",type="13"} 1`) {
 			t.Error("Expected heartbeat message to be counted")
 		}
 	})
@@ -205,7 +204,10 @@ func TestApp(t *testing.T) {
 		// Send initial data for device 1
 		msg := `{
 			"type": "17",
-			"mac": "MAC1",
+			"wifi_mac": "MAC1",
+			"id": 54321,
+			"need_ack": 0,
+			"timestamp": 1594815555,
 			"sensorData": [{
 				"temperature": {"value": 20.0},
 				"humidity": {"value": 60.0}
@@ -219,7 +221,10 @@ func TestApp(t *testing.T) {
 		// Send initial data for device 2
 		msg = `{
 			"type": "17",
-			"mac": "MAC2",
+			"wifi_mac": "MAC2",
+			"id": 54322,
+			"need_ack": 0,
+			"timestamp": 1594815555,
 			"sensorData": [{
 				"temperature": {"value": 20.0},
 				"humidity": {"value": 60.0}
@@ -234,7 +239,7 @@ func TestApp(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Keep sending heartbeats for device 1 only
-		msg = `{"type": "13", "mac": "MAC1"}`
+		msg = `{"type": "13", "wifi_mac": "MAC1"}`
 		for range 4 {
 			err = sendMQTTMessage(t, mqttAddr, "qingping/device1/up", msg)
 			if err != nil {
@@ -250,18 +255,18 @@ func TestApp(t *testing.T) {
 		}
 
 		// Device 1 should have its original metrics
-		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC1",topic="qingping/device1/up"} 20`) {
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC1"} 20`) {
 			t.Errorf("Expected device 1 temperature to remain 20")
 		}
-		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC1",topic="qingping/device1/up"} 60`) {
+		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC1"} 60`) {
 			t.Errorf("Expected device 1 humidity to remain 60")
 		}
 
-		// Device 2 should still have empty metrics
-		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC2",topic="qingping/device2/up"} 0`) {
+		// Device 2 should have empty metrics
+		if !strings.Contains(body, `qingping_temperature_celsius{mac="MAC2"} 0`) {
 			t.Errorf("Expected device 2 temperature to be reset to 0")
 		}
-		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC2",topic="qingping/device2/up"} 0`) {
+		if !strings.Contains(body, `qingping_humidity_percent{mac="MAC2"} 0`) {
 			t.Errorf("Expected device 2 humidity to be reset to 0")
 		}
 	})
