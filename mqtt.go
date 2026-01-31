@@ -44,7 +44,8 @@ type QingpingMessage struct {
 	ID         int          `json:"id"`
 	Type       string       `json:"type"`
 	NeedAck    int          `json:"need_ack"`
-	MAC        string       `json:"mac"`
+	MAC        string       `json:"mac"`      // set in sensor data messages
+	WifiMAC    string       `json:"wifi_mac"` // set in heartbeat messages
 	Timestamp  int64        `json:"timestamp"`
 	SensorData []SensorData `json:"sensorData"`
 }
@@ -172,8 +173,14 @@ func (h *MessageHook) OnPublish(_ *mqtt.Client, pk packets.Packet) (packets.Pack
 		return pk, nil
 	}
 
+	// In different types of messages MAC address is set in defferent fields
+	mac := msg.MAC
+	if msg.WifiMAC != "" {
+		mac = msg.WifiMAC
+	}
+
 	// Mark the device as alive
-	h.alive(msg.MAC, pk.TopicName)
+	h.alive(mac)
 
 	// Do nothing on heartbeat
 	if msg.Type == HeadrbeatType {
